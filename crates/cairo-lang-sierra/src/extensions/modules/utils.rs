@@ -106,6 +106,10 @@ impl Range {
     pub fn intersection(&self, other: &Self) -> Option<Self> {
         let lower = std::cmp::max(&self.lower, &other.lower).clone();
         let upper = std::cmp::min(&self.upper, &other.upper).clone();
-        if lower < upper { Some(Self::half_open(lower, upper)) } else { None }
+        if lower < upper {
+            Some(Self::half_open(lower, upper))
+        } else {
+            None
+        }
     }
 }

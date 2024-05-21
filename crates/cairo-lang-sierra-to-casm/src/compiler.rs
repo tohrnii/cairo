@@ -1,17 +1,34 @@
+use cairo_lang_casm::inline::CasmContext;
+use cairo_lang_sierra::extensions::bitwise::BitwiseType;
+use cairo_lang_sierra::extensions::ec::EcOpType;
+use cairo_lang_sierra::extensions::pedersen::PedersenType;
+use cairo_lang_sierra::extensions::poseidon::PoseidonType;
+use cairo_lang_sierra::extensions::range_check::{RangeCheck96Type, RangeCheckType};
+use cairo_lang_sierra::extensions::segment_arena::SegmentArenaType;
+use cairo_lang_sierra::extensions::starknet::syscalls::SystemType;
+use serde::ser::Error as SerError;
+use serde::ser::SerializeSeq;
+use serde::{Serialize, Serializer};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
+use cairo_felt::Felt252;
 use cairo_lang_casm::assembler::AssembledCairoProgram;
 use cairo_lang_casm::instructions::{Instruction, InstructionBody, RetInstruction};
-use cairo_lang_sierra::extensions::circuit::{CircuitConcreteLibfunc, CircuitInfo, VALUE_SIZE};
+use cairo_lang_casm::{casm, casm_extend};
+use cairo_lang_sierra::extensions::circuit::{
+    AddModType, CircuitConcreteLibfunc, CircuitInfo, MulModType, VALUE_SIZE,
+};
 use cairo_lang_sierra::extensions::const_type::ConstConcreteLibfunc;
 use cairo_lang_sierra::extensions::core::{
     CoreConcreteLibfunc, CoreLibfunc, CoreType, CoreTypeConcrete,
 };
 use cairo_lang_sierra::extensions::coupon::CouponConcreteLibfunc;
-use cairo_lang_sierra::extensions::gas::GasConcreteLibfunc;
+use cairo_lang_sierra::extensions::gas::{GasBuiltinType, GasConcreteLibfunc};
 use cairo_lang_sierra::extensions::lib_func::SierraApChange;
 use cairo_lang_sierra::extensions::ConcreteLibfunc;
-use cairo_lang_sierra::ids::{ConcreteLibfuncId, ConcreteTypeId, VarId};
+use cairo_lang_sierra::extensions::{ConcreteType, NamedType};
+use cairo_lang_sierra::ids::{ConcreteLibfuncId, ConcreteTypeId, GenericTypeId, VarId};
 use cairo_lang_sierra::program::{
     BranchTarget, GenericArg, Invocation, Program, Statement, StatementIdx,
 };
@@ -83,6 +100,10 @@ pub enum CompilationError {
     StatementNotSupportingApChangeVariables(StatementIdx),
     #[error("Expected all gas variables to be positive.")]
     MetadataNegativeGasVariable,
+    #[error("Function param {param_index} only partially contains argument {arg_index}.")]
+    ArgumentUnaligned { param_index: usize, arg_index: usize },
+    #[error("Function expects arguments of size {expected} and received {actual} instead.")]
+    ArgumentsSizeMismatch { expected: usize, actual: usize },
 }
 
 /// Configuration for the Sierra to CASM compilation.
@@ -175,6 +196,316 @@ impl CairoProgram {
     }
 }
 
+pub struct CairoProgramWithContext<'a> {
+    pub cairo_program: &'a CairoProgram,
+    pub sierra_program: &'a Program,
+    pub metadata: &'a Metadata,
+}
+
+impl<'a> CairoProgramWithContext<'a> {
+    pub fn new(
+        cairo_program: &'a CairoProgram,
+        sierra_program: &'a Program,
+        metadata: &'a Metadata,
+    ) -> CairoProgramWithContext<'a> {
+        CairoProgramWithContext { cairo_program, sierra_program, metadata }
+    }
+}
+
+impl<'a> Serialize for CairoProgramWithContext<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        let initial_gas = 0_usize;
+        let main_func = self
+            .sierra_program
+            .find_function("::main")
+            .ok_or_else(|| S::Error::custom("Main function not found"))?;
+        let params = &main_func
+            .signature
+            .param_types
+            .iter()
+            .map(|pt| {
+                let sierra_program_registry =
+                    ProgramRegistry::<CoreType, CoreLibfunc>::new_with_ap_change(
+                        &self.sierra_program,
+                        self.metadata.ap_change_info.function_ap_change.clone(),
+                    )
+                    .map_err(|_| S::Error::custom("Failed building type information"))
+                    .unwrap();
+                let info = sierra_program_registry.get_type(pt).unwrap().info();
+                let generic_id = &info.long_id.generic_id;
+                let type_sizes = get_type_size_map(&self.sierra_program, &sierra_program_registry)
+                    .ok_or_else(|| S::Error::custom("Failed building type information"))
+                    .unwrap();
+                let size = type_sizes[pt];
+                (generic_id.clone(), size)
+            })
+            .collect::<Vec<(GenericTypeId, i16)>>();
+
+        let entry_point = main_func.entry_point.0;
+        let code_offset =
+            self.cairo_program.debug_info.sierra_statement_info[entry_point].start_offset;
+
+        let (entry_code, builtins) =
+            create_entry_code_from_params(&params, &[], initial_gas, code_offset)
+                .map_err(|_| S::Error::custom("Failed building entry code"))
+                .unwrap();
+        let entry_code_assembled: Vec<BigInt> =
+            entry_code.iter().flat_map(|instruction| instruction.assemble().encode()).collect();
+        let builtin_names = builtins.iter().map(|builtin| builtin.name()).collect::<Vec<&str>>();
+        let footer = create_code_footer();
+        // TODO: build hints map
+        let hints = chain!(&entry_code, &self.cairo_program.instructions);
+        let assembled_cairo_program = self.cairo_program.assemble_ex(&entry_code, &footer);
+        map.serialize_entry("bytecode", &assembled_cairo_program.bytecode)?;
+        map.serialize_entry("hints", &assembled_cairo_program.hints)?;
+        // TODO: Add debug info.
+        // map.serialize_entry("debug_info", &self.cairo_program.debug_info)?;
+        // TODO: Add entry point
+        map.serialize_entry("entry_code", &entry_code_assembled)?;
+        map.serialize_entry("builtins", &builtin_names)?;
+        // TODO: Add builtins
+        // map.serialize_entry("builtins", builtins)?;
+        // TODO: add hints
+        // map.serialize_entry("hints", hints)?;
+        map.serialize_entry("consts_info", &self.cairo_program.consts_info)?;
+        map.end()
+    }
+}
+
+pub fn create_entry_code_from_params(
+    param_types: &[(GenericTypeId, i16)],
+    args: &[Arg],
+    initial_gas: usize,
+    code_offset: usize,
+) -> Result<(Vec<Instruction>, Vec<BuiltinName>), CompilationError> {
+    let mut ctx = casm! {};
+    // The builtins in the formatting expected by the runner.
+    let builtins = vec![
+        BuiltinName::pedersen,
+        BuiltinName::range_check,
+        BuiltinName::bitwise,
+        BuiltinName::ec_op,
+        BuiltinName::poseidon,
+    ];
+    // The offset [fp - i] for each of this builtins in this configuration.
+    let builtin_offset: HashMap<GenericTypeId, i16> = HashMap::from([
+        (PedersenType::ID, 7),
+        (RangeCheckType::ID, 6),
+        (BitwiseType::ID, 5),
+        (EcOpType::ID, 4),
+        (PoseidonType::ID, 3),
+    ]);
+
+    let emulated_builtins = HashSet::from([
+        SystemType::ID,
+        // TODO(ilya): Move to following when supported by cairo-vm.
+        RangeCheck96Type::ID,
+        AddModType::ID,
+        MulModType::ID,
+    ]);
+
+    let mut ap_offset: i16 = 0;
+    let mut array_args_data_iter = prep_array_args(&mut ctx, args, &mut ap_offset).into_iter();
+    let after_arrays_data_offset = ap_offset;
+    if param_types.iter().any(|(ty, _)| ty == &SegmentArenaType::ID) {
+        casm_extend! {ctx,
+            // SegmentArena segment.
+            %{ memory[ap + 0] = segments.add() %}
+            // Infos segment.
+            %{ memory[ap + 1] = segments.add() %}
+            ap += 2;
+            [ap + 0] = 0, ap++;
+            // Write Infos segment, n_constructed (0), and n_destructed (0) to the segment.
+            [ap - 2] = [[ap - 3]];
+            [ap - 1] = [[ap - 3] + 1];
+            [ap - 1] = [[ap - 3] + 2];
+        }
+        ap_offset += 3;
+    }
+    let mut expected_arguments_size = 0;
+    let mut param_index = 0;
+    let mut arg_iter = args.iter().enumerate();
+    for ty in param_types {
+        let (generic_ty, ty_size) = ty;
+        if let Some(offset) = builtin_offset.get(generic_ty) {
+            casm_extend! {ctx,
+                [ap + 0] = [fp - offset], ap++;
+            }
+            ap_offset += 1;
+        } else if emulated_builtins.contains(generic_ty) {
+            casm_extend! {ctx,
+                %{ memory[ap + 0] = segments.add() %}
+                ap += 1;
+            }
+            ap_offset += 1;
+        } else if generic_ty == &GasBuiltinType::ID {
+            casm_extend! {ctx,
+                [ap + 0] = initial_gas, ap++;
+            }
+            ap_offset += 1;
+        } else if generic_ty == &SegmentArenaType::ID {
+            let offset = -ap_offset + after_arrays_data_offset;
+            casm_extend! {ctx,
+                [ap + 0] = [ap + offset] + 3, ap++;
+            }
+            ap_offset += 1;
+        } else {
+            let arg_size = *ty_size;
+            let param_ap_offset_end = ap_offset + arg_size;
+            expected_arguments_size += arg_size.into_or_panic::<usize>();
+            while ap_offset < param_ap_offset_end {
+                let Some((arg_index, arg)) = arg_iter.next() else {
+                    break;
+                };
+                add_arg_to_stack(&mut ctx, arg, &mut ap_offset, &mut array_args_data_iter);
+                if ap_offset > param_ap_offset_end {
+                    return Err(CompilationError::ArgumentUnaligned { param_index, arg_index });
+                }
+            }
+            param_index += 1;
+        };
+    }
+    let actual_args_size = args
+        .iter()
+        .map(|arg| match arg {
+            Arg::Value(_) => 1,
+            Arg::Array(_) => 2,
+        })
+        .sum::<usize>();
+    if expected_arguments_size != actual_args_size {
+        return Err(CompilationError::ArgumentsSizeMismatch {
+            expected: expected_arguments_size,
+            actual: actual_args_size,
+        });
+    }
+    let before_final_call = ctx.current_code_offset;
+    let final_call_size = 3;
+    let offset = final_call_size + code_offset;
+    casm_extend! {ctx,
+        call rel offset;
+        ret;
+    }
+    assert_eq!(before_final_call + final_call_size, ctx.current_code_offset);
+    Ok((ctx.instructions, builtins))
+}
+
+fn prep_array_args(ctx: &mut CasmContext, args: &[Arg], ap_offset: &mut i16) -> Vec<ArrayDataInfo> {
+    let mut array_args_data = vec![];
+    for arg in args {
+        let Arg::Array(values) = arg else { continue };
+        let mut inner_array_args_data = prep_array_args(ctx, values, ap_offset).into_iter();
+        casm_extend! {ctx,
+            %{ memory[ap + 0] = segments.add() %}
+            ap += 1;
+        }
+
+        let ptr_offset = *ap_offset;
+        *ap_offset += 1;
+        let data_offset = *ap_offset;
+        for arg in values {
+            add_arg_to_stack(ctx, arg, ap_offset, &mut inner_array_args_data);
+        }
+        let ptr = *ap_offset - ptr_offset;
+        let size = *ap_offset - data_offset;
+        for i in 0..size {
+            casm_extend! {ctx, [ap + (i - size)] = [[ap - ptr] + i]; }
+        }
+        array_args_data.push(ArrayDataInfo { ptr_offset, size });
+    }
+    array_args_data
+}
+
+/// The information on an array argument that was added to the stack.
+struct ArrayDataInfo {
+    /// The offset of the pointer to the array data in the stack.
+    ptr_offset: i16,
+    /// The size of the array data in the stack.
+    size: i16,
+}
+
+// TODO: remove repitiion. This is already defined in the cairo_vm
+enum BuiltinName {
+    output,
+    range_check,
+    pedersen,
+    ecdsa,
+    keccak,
+    bitwise,
+    ec_op,
+    poseidon,
+    segment_arena,
+}
+
+impl BuiltinName {
+    pub fn name(&self) -> &'static str {
+        match self {
+            BuiltinName::output => OUTPUT_BUILTIN_NAME,
+            BuiltinName::range_check => RANGE_CHECK_BUILTIN_NAME,
+            BuiltinName::pedersen => HASH_BUILTIN_NAME,
+            BuiltinName::ecdsa => SIGNATURE_BUILTIN_NAME,
+            BuiltinName::keccak => KECCAK_BUILTIN_NAME,
+            BuiltinName::bitwise => BITWISE_BUILTIN_NAME,
+            BuiltinName::ec_op => EC_OP_BUILTIN_NAME,
+            BuiltinName::poseidon => POSEIDON_BUILTIN_NAME,
+            BuiltinName::segment_arena => SEGMENT_ARENA_BUILTIN_NAME,
+        }
+    }
+}
+
+// TODO: remove repitition. This is already defined in the cairo_vm
+pub const OUTPUT_BUILTIN_NAME: &str = "output_builtin";
+pub const HASH_BUILTIN_NAME: &str = "pedersen_builtin";
+pub const RANGE_CHECK_BUILTIN_NAME: &str = "range_check_builtin";
+pub const SIGNATURE_BUILTIN_NAME: &str = "ecdsa_builtin";
+pub const BITWISE_BUILTIN_NAME: &str = "bitwise_builtin";
+pub const EC_OP_BUILTIN_NAME: &str = "ec_op_builtin";
+pub const KECCAK_BUILTIN_NAME: &str = "keccak_builtin";
+pub const POSEIDON_BUILTIN_NAME: &str = "poseidon_builtin";
+pub const SEGMENT_ARENA_BUILTIN_NAME: &str = "segment_arena_builtin";
+
+// TODO: remove repitition. This is already defined in the cairo-runner
+/// An argument to a sierra function run,
+#[derive(Debug)]
+pub enum Arg {
+    Value(Felt252),
+    Array(Vec<Arg>),
+}
+impl From<Felt252> for Arg {
+    fn from(value: Felt252) -> Self {
+        Self::Value(value)
+    }
+}
+
+/// Adds an argument to the stack, updating the ap_offset and the array_data_iter.
+fn add_arg_to_stack(
+    ctx: &mut CasmContext,
+    arg: &Arg,
+    ap_offset: &mut i16,
+    array_data_iter: &mut impl Iterator<Item = ArrayDataInfo>,
+) {
+    match arg {
+        Arg::Value(value) => {
+            casm_extend! {ctx,
+                [ap + 0] = (value.to_bigint()), ap++;
+            }
+            *ap_offset += 1;
+        }
+        Arg::Array(_) => {
+            let info = array_data_iter.next().unwrap();
+            casm_extend! {ctx,
+                [ap + 0] = [ap + (info.ptr_offset - *ap_offset)], ap++;
+                [ap + 0] = [ap - 1] + (info.size), ap++;
+            }
+            *ap_offset += 2;
+        }
+    }
+}
+
 /// The debug information of a compilation from Sierra to casm.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SierraStatementDebugInfo {
@@ -220,7 +551,7 @@ pub struct CairoProgramDebugInfo {
 }
 
 /// The information about the constants used in the program.
-#[derive(Debug, Eq, PartialEq, Default, Clone)]
+#[derive(Serialize, Debug, Eq, PartialEq, Default, Clone)]
 pub struct ConstsInfo {
     pub segments: OrderedHashMap<u32, ConstSegment>,
     pub total_segments_size: usize,
@@ -315,14 +646,27 @@ impl ConstsInfo {
 }
 
 /// The data for a single segment.
-#[derive(Debug, Eq, PartialEq, Default, Clone)]
+#[derive(Serialize, Debug, Eq, PartialEq, Default, Clone)]
 pub struct ConstSegment {
     /// The values in the segment.
+    #[serde(serialize_with = "serialize_bigint_vec")]
     pub values: Vec<BigInt>,
     /// The offset of each const within the segment.
     pub const_offset: UnorderedHashMap<ConcreteTypeId, usize>,
     /// The offset of the segment relative to the end of the code segment.
     pub segment_offset: usize,
+}
+
+fn serialize_bigint_vec<S>(bigint_vec: &Vec<BigInt>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(bigint_vec.len()))?;
+    for bigint in bigint_vec {
+        let string_repr = bigint.to_string();
+        seq.serialize_element(&string_repr)?;
+    }
+    seq.end()
 }
 
 /// Gets a concrete type, if it is a const type returns a vector of the values to be stored in the
@@ -387,6 +731,16 @@ fn extract_const_value(
         };
     }
     Ok(values)
+}
+
+/// Creates a list of instructions that will be appended to the program's bytecode.
+pub fn create_code_footer() -> Vec<Instruction> {
+    casm! {
+        // Add a `ret` instruction used in libfuncs that retrieve the current value of the `fp`
+        // and `pc` registers.
+        ret;
+    }
+    .instructions
 }
 
 /// Ensure the basic structure of the invocation is the same as the library function.

@@ -155,7 +155,11 @@ fn get_kept_items_nodes<Item: QueryAttrs + TypedSyntaxNode>(
             kept_items_nodes.push(item.as_syntax_node());
         }
     }
-    if any_dropped { Some(kept_items_nodes) } else { None }
+    if any_dropped {
+        Some(kept_items_nodes)
+    } else {
+        None
+    }
 }
 
 /// Check if the given item should be dropped from the AST.

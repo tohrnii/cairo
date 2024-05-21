@@ -217,7 +217,11 @@ fn get_branch_requirements<
                 branch_info,
                 branch_cost,
             );
-            if rectify { res.rectify() } else { res }
+            if rectify {
+                res.rectify()
+            } else {
+                res
+            }
         })
         .collect()
 }
@@ -781,7 +785,11 @@ pub struct PostcostContext<'a> {
 
 impl<'a, CostType: PostCostTypeEx> SpecificCostContextTrait<CostType> for PostcostContext<'a> {
     fn to_cost_map(cost: CostType) -> OrderedHashMap<CostTokenType, i64> {
-        if cost == CostType::default() { Default::default() } else { Self::to_full_cost_map(cost) }
+        if cost == CostType::default() {
+            Default::default()
+        } else {
+            Self::to_full_cost_map(cost)
+        }
     }
 
     fn to_full_cost_map(cost: CostType) -> OrderedHashMap<CostTokenType, i64> {

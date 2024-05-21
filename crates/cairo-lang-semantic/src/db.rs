@@ -217,7 +217,7 @@ pub trait SemanticGroup:
     /// Returns the semantic diagnostics of a struct definition.
     #[salsa::invoke(items::structure::struct_definition_diagnostics)]
     fn struct_definition_diagnostics(&self, struct_id: StructId)
-    -> Diagnostics<SemanticDiagnostic>;
+        -> Diagnostics<SemanticDiagnostic>;
     /// Returns the members of a struct.
     #[salsa::invoke(items::structure::struct_members)]
     fn struct_members(
@@ -233,7 +233,7 @@ pub trait SemanticGroup:
     /// Private query to compute data about an enum declaration.
     #[salsa::invoke(items::enm::priv_enum_declaration_data)]
     fn priv_enum_declaration_data(&self, enum_id: EnumId)
-    -> Maybe<items::enm::EnumDeclarationData>;
+        -> Maybe<items::enm::EnumDeclarationData>;
     /// Returns the diagnostics of an enum declaration.
     #[salsa::invoke(items::enm::enum_declaration_diagnostics)]
     fn enum_declaration_diagnostics(&self, enum_id: EnumId) -> Diagnostics<SemanticDiagnostic>;
@@ -391,7 +391,7 @@ pub trait SemanticGroup:
     /// Returns the functions of a trait.
     #[salsa::invoke(items::trt::trait_functions)]
     fn trait_functions(&self, trait_id: TraitId)
-    -> Maybe<OrderedHashMap<SmolStr, TraitFunctionId>>;
+        -> Maybe<OrderedHashMap<SmolStr, TraitFunctionId>>;
     /// Returns the function with the given name of the given trait, if exists.
     #[salsa::invoke(items::trt::trait_function_by_name)]
     fn trait_function_by_name(
@@ -409,7 +409,7 @@ pub trait SemanticGroup:
     /// Returns the constants of a trait.
     #[salsa::invoke(items::trt::trait_constants)]
     fn trait_constants(&self, trait_id: TraitId)
-    -> Maybe<OrderedHashMap<SmolStr, TraitConstantId>>;
+        -> Maybe<OrderedHashMap<SmolStr, TraitConstantId>>;
     /// Returns the item constants with the given name of the given trait, if exists.
     #[salsa::invoke(items::trt::trait_constant_by_name)]
     fn trait_constant_by_name(
@@ -430,7 +430,7 @@ pub trait SemanticGroup:
     /// Returns the semantic diagnostics of a trait type.
     #[salsa::invoke(items::trt::trait_type_diagnostics)]
     fn trait_type_diagnostics(&self, trait_type_id: TraitTypeId)
-    -> Diagnostics<SemanticDiagnostic>;
+        -> Diagnostics<SemanticDiagnostic>;
     /// Returns the generic params of a trait type.
     #[salsa::invoke(items::trt::trait_type_generic_params)]
     fn trait_type_generic_params(&self, trait_type_id: TraitTypeId) -> Maybe<Vec<GenericParam>>;
@@ -656,7 +656,7 @@ pub trait SemanticGroup:
     /// Returns the item of the impl, by the given `name`, if exists.
     #[salsa::invoke(items::imp::impl_item_by_name)]
     fn impl_item_by_name(&self, impl_def_id: ImplDefId, name: SmolStr)
-    -> Maybe<Option<ImplItemId>>;
+        -> Maybe<Option<ImplItemId>>;
     /// Returns the type items in the impl.
     #[salsa::invoke(items::imp::impl_types)]
     fn impl_types(
@@ -788,7 +788,7 @@ pub trait SemanticGroup:
     #[salsa::invoke(items::imp::impl_constant_def_value)]
     #[salsa::cycle(items::imp::impl_constant_def_value_cycle)]
     fn impl_constant_def_value(&self, impl_constant_def_id: ImplConstantDefId)
-    -> Maybe<ConstValue>;
+        -> Maybe<ConstValue>;
     /// Returns the resolution resolved_items of an impl item constant.
     #[salsa::invoke(items::imp::impl_constant_def_resolver_data)]
     fn impl_constant_def_resolver_data(

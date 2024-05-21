@@ -27,5 +27,9 @@ pub fn try_extract_minus_literal(
     )?;
     let trait_id = imp.impl_id.concrete_trait(db).to_option()?.trait_id(db);
     require(trait_id == get_core_trait(db, CoreTraitContext::TopLevel, "Neg".into()))?;
-    if imp.function.name(db.upcast()) != "neg" { None } else { Some(-literal.value.clone()) }
+    if imp.function.name(db.upcast()) != "neg" {
+        None
+    } else {
+        Some(-literal.value.clone())
+    }
 }

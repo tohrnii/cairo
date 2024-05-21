@@ -193,7 +193,11 @@ fn validate_const_nz_data(
         is_non_zero |= !const_data.is_zero();
     }
 
-    if is_non_zero { Ok(()) } else { Err(SpecializationError::UnsupportedGenericArg) }
+    if is_non_zero {
+        Ok(())
+    } else {
+        Err(SpecializationError::UnsupportedGenericArg)
+    }
 }
 
 /// Validates the type is a `Const` type, and extracts the inner type and the rest of the generic

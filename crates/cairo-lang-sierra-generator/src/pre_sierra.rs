@@ -114,7 +114,11 @@ impl<'db> std::fmt::Display for StatementWithDb<'db> {
                 write_comma_separated(
                     f,
                     values.iter().map(|PushValue { var_on_stack, dup, .. }| {
-                        if *dup { format!("{var_on_stack}*") } else { format!("{var_on_stack}") }
+                        if *dup {
+                            format!("{var_on_stack}*")
+                        } else {
+                            format!("{var_on_stack}")
+                        }
                     }),
                 )?;
                 write!(f, ")")

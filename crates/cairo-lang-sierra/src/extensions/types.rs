@@ -68,7 +68,11 @@ impl<TNamedType: NamedType> GenericType for TNamedType {
     type Concrete = <Self as NamedType>::Concrete;
 
     fn by_id(id: &GenericTypeId) -> Option<Self> {
-        if &Self::ID == id { Some(Self::default()) } else { None }
+        if &Self::ID == id {
+            Some(Self::default())
+        } else {
+            None
+        }
     }
 
     fn specialize(

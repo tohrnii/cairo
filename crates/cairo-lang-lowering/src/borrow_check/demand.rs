@@ -52,7 +52,7 @@ impl<Var: std::hash::Hash + Eq + Copy, UsePosition: Copy, Aux: Clone + Default +
         &mut self,
         reporter: &mut T,
         remapping: impl std::iter::DoubleEndedIterator<Item = (&'a V, (&'a V, T::UsePosition))>
-        + std::iter::ExactSizeIterator,
+            + std::iter::ExactSizeIterator,
     ) {
         // Traverse the remapping in reverse order, as remappings can use the same variable more
         // than once, and the whole usage is analyzed in reverse.
@@ -80,7 +80,7 @@ impl<Var: std::hash::Hash + Eq + Copy, UsePosition: Copy, Aux: Clone + Default +
         &mut self,
         reporter: &mut T,
         vars: impl std::iter::DoubleEndedIterator<Item = (&'a V, T::UsePosition)>
-        + std::iter::ExactSizeIterator,
+            + std::iter::ExactSizeIterator,
     ) {
         for (var, position) in vars.rev() {
             if let Some(next_usage_position) = self.vars.insert((*var).into(), position) {

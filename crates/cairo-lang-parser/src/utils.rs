@@ -50,7 +50,11 @@ impl SimpleParserDatabase {
         content: impl ToString,
     ) -> Result<SyntaxNode, Diagnostics<ParserDiagnostic>> {
         let (node, diagnostics) = self.parse_virtual_with_diagnostics(content);
-        if diagnostics.check_error_free().is_ok() { Ok(node) } else { Err(diagnostics) }
+        if diagnostics.check_error_free().is_ok() {
+            Ok(node)
+        } else {
+            Err(diagnostics)
+        }
     }
 
     /// Parses new file and return its syntax root with diagnostics.

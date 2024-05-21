@@ -62,17 +62,15 @@ fn get_var_split(lowered: &mut FlatLowered) -> SplitMapping {
 
         for stmt in block.statements.iter() {
             if let Statement::StructConstruct(stmt) = stmt {
-                assert!(
-                    split
-                        .insert(
-                            stmt.output,
-                            SplitInfo {
-                                block_id,
-                                vars: stmt.inputs.iter().map(|input| input.var_id).collect_vec(),
-                            },
-                        )
-                        .is_none()
-                );
+                assert!(split
+                    .insert(
+                        stmt.output,
+                        SplitInfo {
+                            block_id,
+                            vars: stmt.inputs.iter().map(|input| input.var_id).collect_vec(),
+                        },
+                    )
+                    .is_none());
             }
         }
 
@@ -174,9 +172,11 @@ fn rebuild_blocks(lowered: &mut FlatLowered, split: SplitMapping) {
                         for (output, new_var) in
                             zip_eq(stmt.outputs.iter(), output_split.vars.to_vec())
                         {
-                            assert!(
-                                ctx.var_remapper.renamed_vars.insert(*output, new_var).is_none()
-                            )
+                            assert!(ctx
+                                .var_remapper
+                                .renamed_vars
+                                .insert(*output, new_var)
+                                .is_none())
                         }
                     } else {
                         statements.push(Statement::StructDestructure(stmt));
@@ -329,10 +329,8 @@ impl SplitStructsContext<'_> {
             reconstructed_var_id
         } else {
             // All the inputs should use the original var names.
-            assert!(
-                zip_eq(&inputs, &split_info.vars)
-                    .all(|(input, var_id)| input.var_id == self.var_remapper.map_var_id(*var_id))
-            );
+            assert!(zip_eq(&inputs, &split_info.vars)
+                .all(|(input, var_id)| input.var_id == self.var_remapper.map_var_id(*var_id)));
 
             // Mark `var_id` for reconstruction at the end of `split_info.block_id`
             self.reconstructed.insert(var_id, Some(split_info.block_id));

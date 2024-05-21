@@ -55,7 +55,11 @@ pub fn analyze_ap_changes(
             // All empty variables are not ap based.
             lowered_function.variables.iter().filter_map(|(id, var)| {
                 let info = db.get_type_info(db.get_concrete_type_id(var.ty).ok()?).ok()?;
-                if info.zero_sized { Some(id) } else { None }
+                if info.zero_sized {
+                    Some(id)
+                } else {
+                    None
+                }
             })
         )),
         constants: Default::default(),

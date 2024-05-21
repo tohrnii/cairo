@@ -248,7 +248,11 @@ impl<TEntry: DiagnosticEntry> Diagnostics<TEntry> {
 
     /// Returns Ok if there are no errors, or DiagnosticAdded if there are.
     pub fn check_error_free(&self) -> Maybe<()> {
-        if self.0.error_count == 0 { Ok(()) } else { Err(DiagnosticAdded) }
+        if self.0.error_count == 0 {
+            Ok(())
+        } else {
+            Err(DiagnosticAdded)
+        }
     }
 
     /// Format entries to pairs of severity and message.

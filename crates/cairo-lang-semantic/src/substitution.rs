@@ -94,11 +94,11 @@ impl std::hash::Hash for GenericSubstitution {
 macro_rules! semantic_object_for_id {
     ($name:ident, $lookup:ident, $intern:ident, $long_ty:ident) => {
         impl<
-            'a,
-            Error,
-            TRewriter: $crate::substitution::HasDb<&'a dyn $crate::db::SemanticGroup>
-                + $crate::substitution::SemanticRewriter<$long_ty, Error>,
-        > $crate::substitution::SemanticObject<TRewriter, Error> for $name
+                'a,
+                Error,
+                TRewriter: $crate::substitution::HasDb<&'a dyn $crate::db::SemanticGroup>
+                    + $crate::substitution::SemanticRewriter<$long_ty, Error>,
+            > $crate::substitution::SemanticObject<TRewriter, Error> for $name
         {
             fn default_rewrite(
                 &mut self,

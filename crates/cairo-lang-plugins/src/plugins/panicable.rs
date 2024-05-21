@@ -187,13 +187,11 @@ fn parse_arguments(
     db: &dyn SyntaxGroup,
     attr: &Attribute,
 ) -> Option<(ast::TerminalShortString, ast::TerminalIdentifier)> {
-    let [
-        AttributeArg {
-            variant: AttributeArgVariant::Unnamed(ast::Expr::ShortString(err_value)),
-            ..
-        },
-        AttributeArg { variant: AttributeArgVariant::Unnamed(ast::Expr::Path(name)), .. },
-    ] = &attr.args[..]
+    let [AttributeArg {
+        variant: AttributeArgVariant::Unnamed(ast::Expr::ShortString(err_value)),
+        ..
+    }, AttributeArg { variant: AttributeArgVariant::Unnamed(ast::Expr::Path(name)), .. }] =
+        &attr.args[..]
     else {
         return None;
     };

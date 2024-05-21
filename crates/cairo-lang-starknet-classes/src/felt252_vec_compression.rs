@@ -57,7 +57,11 @@ pub fn decompress<Result: Extend<BigUintAsHex>>(
         }
         remaining_unpacked_size -= curr_words;
     }
-    if remaining_unpacked_size == 0 { Some(()) } else { None }
+    if remaining_unpacked_size == 0 {
+        Some(())
+    } else {
+        None
+    }
 }
 
 /// Pops a `usize` from the slice while making sure it is a valid `usize`.

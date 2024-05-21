@@ -802,7 +802,11 @@ pub fn validate_literal(
     } else {
         return Err(LiteralError::InvalidTypeForLiteral(ty));
     };
-    if is_out_of_range { Err(LiteralError::OutOfRange(ty)) } else { Ok(()) }
+    if is_out_of_range {
+        Err(LiteralError::OutOfRange(ty))
+    } else {
+        Ok(())
+    }
 }
 
 /// Returns the type if the inner value of a `NonZero` type, if it is wrapped in one.

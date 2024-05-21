@@ -282,10 +282,12 @@ pub fn core_libfunc_cost(
                 }
             }
             ArrayConcreteLibfunc::Len(libfunc) => {
-                vec![
-                    ConstCost::steps(if info_provider.type_size(&libfunc.ty) == 1 { 0 } else { 1 })
-                        .into(),
-                ]
+                vec![ConstCost::steps(if info_provider.type_size(&libfunc.ty) == 1 {
+                    0
+                } else {
+                    1
+                })
+                .into()]
             }
         },
         Uint8(libfunc) => uint_libfunc_cost(libfunc),
@@ -445,20 +447,18 @@ pub fn core_libfunc_cost(
             | BoundedIntConcreteLibfunc::Sub(_)
             | BoundedIntConcreteLibfunc::Mul(_) => vec![ConstCost::steps(0).into()],
             BoundedIntConcreteLibfunc::DivRem(libfunc) => {
-                vec![
-                    match BoundedIntDivRemAlgorithm::new(&libfunc.lhs, &libfunc.rhs).unwrap() {
-                        BoundedIntDivRemAlgorithm::KnownSmallRhs => {
-                            ConstCost { steps: 7, holes: 0, range_checks: 3 }
-                        }
-                        BoundedIntDivRemAlgorithm::KnownSmallQuotient(_) => {
-                            ConstCost { steps: 9, holes: 0, range_checks: 4 }
-                        }
-                        BoundedIntDivRemAlgorithm::KnownSmallLhs(_) => {
-                            ConstCost { steps: 11, holes: 0, range_checks: 4 }
-                        }
+                vec![match BoundedIntDivRemAlgorithm::new(&libfunc.lhs, &libfunc.rhs).unwrap() {
+                    BoundedIntDivRemAlgorithm::KnownSmallRhs => {
+                        ConstCost { steps: 7, holes: 0, range_checks: 3 }
                     }
-                    .into(),
-                ]
+                    BoundedIntDivRemAlgorithm::KnownSmallQuotient(_) => {
+                        ConstCost { steps: 9, holes: 0, range_checks: 4 }
+                    }
+                    BoundedIntDivRemAlgorithm::KnownSmallLhs(_) => {
+                        ConstCost { steps: 11, holes: 0, range_checks: 4 }
+                    }
+                }
+                .into()]
             }
             BoundedIntConcreteLibfunc::Constrain(libfunc) => {
                 vec![

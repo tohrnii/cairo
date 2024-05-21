@@ -2,6 +2,7 @@ use std::fs;
 
 use anyhow::Context;
 use cairo_lang_sierra::ProgramParser;
+use cairo_lang_sierra_to_casm::compiler::CairoProgramWithContext;
 use cairo_lang_sierra_to_casm::compiler::SierraToCasmConfig;
 use cairo_lang_sierra_to_casm::metadata::calc_metadata;
 use cairo_lang_utils::logging::init_logging;
@@ -31,14 +32,26 @@ fn main() -> anyhow::Result<()> {
             Note: StarkNet contracts should be compiled with `starknet-sierra-compile`."
         })
     };
-
+    let metadata = &calc_metadata(&program, Default::default())
+        .with_context(|| "Failed calculating Sierra variables.")?;
     let cairo_program = cairo_lang_sierra_to_casm::compiler::compile(
         &program,
-        &calc_metadata(&program, Default::default())
-            .with_context(|| "Failed calculating Sierra variables.")?,
+        metadata,
         SierraToCasmConfig { gas_usage_check: true, max_bytecode_size: usize::MAX },
     )
     .with_context(|| "Compilation failed.")?;
-
-    fs::write(args.output, format!("{cairo_program}")).with_context(|| "Failed to write output.")
+    let cairo_program_with_context =
+        CairoProgramWithContext::new(&cairo_program, &program, metadata);
+    let json_result = serde_json::to_string(&cairo_program_with_context);
+    match json_result {
+        Ok(json_string) => {
+            fs::write(&args.output, &json_string)
+                .with_context(|| format!("Failed to write output to {}", args.output))?;
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to serialize CairoProgram: {}", e);
+        }
+    }
+    Ok(())
+    // fs::write(args.output, format!("{cairo_program}")).with_context(|| "Failed to write output.")
 }

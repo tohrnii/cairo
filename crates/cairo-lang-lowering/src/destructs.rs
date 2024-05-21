@@ -313,14 +313,14 @@ pub fn add_destructs(
     // ordering and grouping.
     let as_tuple = |entry: &DestructionEntry| match entry {
         DestructionEntry::Plain(plain_destruct) => {
-            (plain_destruct.position.0.0, plain_destruct.position.1, AddDestructFlowType::Plain, 0)
+            (plain_destruct.position.0 .0, plain_destruct.position.1, AddDestructFlowType::Plain, 0)
         }
         DestructionEntry::Panic(panic_destruct) => match panic_destruct.panic_location {
             PanicLocation::PanicMatch { target_block_id, match_block_id } => {
                 (target_block_id.0, 0, AddDestructFlowType::PanicPostMatch, match_block_id.0)
             }
             PanicLocation::PanicVar { statement_location } => {
-                (statement_location.0.0, statement_location.1, AddDestructFlowType::PanicVar, 0)
+                (statement_location.0 .0, statement_location.1, AddDestructFlowType::PanicVar, 0)
             }
         },
     };

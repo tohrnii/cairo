@@ -21,7 +21,11 @@
 #[macro_export]
 macro_rules! try_extract_matches {
     ($e:expr, $variant:path) => {
-        if let $variant(x) = $e { Some(x) } else { None }
+        if let $variant(x) = $e {
+            Some(x)
+        } else {
+            None
+        }
     };
 }
 

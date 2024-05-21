@@ -181,7 +181,11 @@ impl<TNamedLibfunc: NamedLibfunc> GenericLibfunc for TNamedLibfunc {
     }
 
     fn by_id(id: &GenericLibfuncId) -> Option<Self> {
-        if Self::STR_ID == id.0 { Some(Self::default()) } else { None }
+        if Self::STR_ID == id.0 {
+            Some(Self::default())
+        } else {
+            None
+        }
     }
 
     fn specialize_signature(

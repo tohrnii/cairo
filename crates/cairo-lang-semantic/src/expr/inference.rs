@@ -881,7 +881,11 @@ impl<'db> Inference<'db> {
 
     /// Returns whether an error is set (either pending or consumed).
     pub fn is_error_set(&self) -> InferenceResult<()> {
-        if self.error_status.is_err() { Err(ErrorSet) } else { Ok(()) }
+        if self.error_status.is_err() {
+            Err(ErrorSet)
+        } else {
+            Ok(())
+        }
     }
 
     /// Consumes the error but doesn't report it. If there is no error, or the error is consumed,

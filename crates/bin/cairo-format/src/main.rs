@@ -201,5 +201,9 @@ fn main() -> ExitCode {
         // Input comes from walk of listed locations
         args.files.iter().all(|file| format_path(file, &args, &fmt))
     };
-    if all_correct { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+    if all_correct {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }

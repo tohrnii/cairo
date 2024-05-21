@@ -339,7 +339,11 @@ impl AnalyzerInfo {
     /// Replaces occurrences of `var_id` with `var_info`.
     fn replace(&mut self, var_id: VariableId, var_info: ValueInfo) {
         self.apply(&|var_usage| {
-            if var_usage.var_id == var_id { var_info.clone() } else { ValueInfo::Var(*var_usage) }
+            if var_usage.var_id == var_id {
+                var_info.clone()
+            } else {
+                ValueInfo::Var(*var_usage)
+            }
         });
     }
 

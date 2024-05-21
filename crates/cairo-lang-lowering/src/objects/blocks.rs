@@ -86,11 +86,19 @@ impl<T: Default> Blocks<T> {
     // build a non empty Blocks. The only way to create an empty Blocks is using
     // `new_errored(DiagnosticAdded)`.
     pub fn root_block(&self) -> Maybe<&T> {
-        if self.is_empty() { Err(DiagnosticAdded) } else { Ok(&self.0[0]) }
+        if self.is_empty() {
+            Err(DiagnosticAdded)
+        } else {
+            Ok(&self.0[0])
+        }
     }
 
     pub fn has_root(&self) -> Maybe<()> {
-        if self.is_empty() { Err(DiagnosticAdded) } else { Ok(()) }
+        if self.is_empty() {
+            Err(DiagnosticAdded)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {

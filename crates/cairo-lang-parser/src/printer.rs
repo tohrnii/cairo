@@ -271,22 +271,46 @@ impl<'a> Printer<'a> {
 
     // Color helpers.
     fn bold(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.bold() } else { text }
+        if self.print_colors {
+            text.bold()
+        } else {
+            text
+        }
     }
     fn green(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.green() } else { text }
+        if self.print_colors {
+            text.green()
+        } else {
+            text
+        }
     }
     fn red(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.red() } else { text }
+        if self.print_colors {
+            text.red()
+        } else {
+            text
+        }
     }
     fn cyan(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.cyan() } else { text }
+        if self.print_colors {
+            text.cyan()
+        } else {
+            text
+        }
     }
     fn blue(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.blue() } else { text }
+        if self.print_colors {
+            text.blue()
+        } else {
+            text
+        }
     }
     fn bright_purple(&self, text: ColoredString) -> ColoredString {
-        if self.print_colors { text.bright_purple() } else { text }
+        if self.print_colors {
+            text.bright_purple()
+        } else {
+            text
+        }
     }
 }
 

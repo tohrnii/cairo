@@ -165,7 +165,11 @@ impl<'a> DiagnosticsReporter<'a> {
     /// Checks if there are diagnostics and reports them to the provided callback as strings.
     /// Returns `Err` if diagnostics were found.
     pub fn ensure(&mut self, db: &RootDatabase) -> Result<(), DiagnosticsError> {
-        if self.check(db) { Err(DiagnosticsError) } else { Ok(()) }
+        if self.check(db) {
+            Err(DiagnosticsError)
+        } else {
+            Ok(())
+        }
     }
 }
 

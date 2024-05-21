@@ -183,8 +183,8 @@ impl CostTokenType {
 
     /// Iterates over the tokens that are used in the Sierra->Casm compilation (pre-cost token types
     /// and [CostTokenType::Const]).
-    pub fn iter_casm_tokens()
-    -> std::iter::Chain<std::slice::Iter<'static, Self>, std::slice::Iter<'static, Self>> {
+    pub fn iter_casm_tokens(
+    ) -> std::iter::Chain<std::slice::Iter<'static, Self>, std::slice::Iter<'static, Self>> {
         chain!(Self::iter_precost(), [CostTokenType::Const].iter())
     }
 

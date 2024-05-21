@@ -119,12 +119,10 @@ pub fn extract_item_allowed_features(
     for attr_syntax in syntax.query_attr(db, FEATURE_ATTR) {
         let attr = attr_syntax.structurize(db);
         let feature_name = match &attr.args[..] {
-            [
-                AttributeArg {
-                    variant: AttributeArgVariant::Unnamed(ast::Expr::String(value)),
-                    ..
-                },
-            ] => value.text(db),
+            [AttributeArg {
+                variant: AttributeArgVariant::Unnamed(ast::Expr::String(value)),
+                ..
+            }] => value.text(db),
             _ => {
                 diagnostics.report(
                     attr.args_stable_ptr.untyped(),

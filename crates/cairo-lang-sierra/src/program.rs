@@ -56,7 +56,11 @@ impl<'de, const V: u8> Deserialize<'de> for Version<V> {
         D: serde::Deserializer<'de>,
     {
         let value = u8::deserialize(deserializer)?;
-        if value == V { Ok(Version::<V>) } else { Err(serde::de::Error::custom(VersionError)) }
+        if value == V {
+            Ok(Version::<V>)
+        } else {
+            Err(serde::de::Error::custom(VersionError))
+        }
     }
 }
 
@@ -133,6 +137,17 @@ impl Program {
     /// Create a new [`ProgramArtifact`] out of this [`Program`].
     pub fn into_artifact(self) -> VersionedProgram {
         ProgramArtifact::stripped(self).into()
+    }
+
+    /// Finds first function ending with `name_suffix`.
+    pub fn find_function(&self, name_suffix: &str) -> Option<&Function> {
+        self.funcs.iter().find(|f| {
+            if let Some(name) = &f.id.debug_name {
+                name.ends_with(name_suffix)
+            } else {
+                false
+            }
+        })
     }
 }
 

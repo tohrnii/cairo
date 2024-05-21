@@ -354,7 +354,7 @@ fn generic_param_generic_params_list(
 
     // The generic params list is 2 level up the tree.
     let syntax_db = db.upcast();
-    let wrapped_generic_param_list = generic_param_long_id.1.0.nth_parent(syntax_db, 2);
+    let wrapped_generic_param_list = generic_param_long_id.1 .0.nth_parent(syntax_db, 2);
 
     Ok(ast::OptionWrappedGenericParamListPtr(wrapped_generic_param_list).lookup(syntax_db))
 }

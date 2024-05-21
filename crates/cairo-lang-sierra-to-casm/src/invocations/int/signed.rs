@@ -38,11 +38,8 @@ pub fn build_sint_overflowing_operation(
     assert!(min_value <= 0, "min_value must be non-positive");
     assert!(max_value > 0, "max_value must be positive");
     let [range_check, lhs, rhs] = builder.try_get_single_cells()?;
-    let [
-        BranchInfo { target: BranchTarget::Fallthrough, results: _ },
-        BranchInfo { target: BranchTarget::Statement(underflow_handle_statement_id), results: _ },
-        BranchInfo { target: BranchTarget::Statement(overflow_handle_statement_id), results: _ },
-    ] = builder.invocation.branches.as_slice()
+    let [BranchInfo { target: BranchTarget::Fallthrough, results: _ }, BranchInfo { target: BranchTarget::Statement(underflow_handle_statement_id), results: _ }, BranchInfo { target: BranchTarget::Statement(overflow_handle_statement_id), results: _ }] =
+        builder.invocation.branches.as_slice()
     else {
         panic!("malformed invocation");
     };

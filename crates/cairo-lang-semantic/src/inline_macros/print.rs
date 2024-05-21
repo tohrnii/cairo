@@ -94,5 +94,9 @@ fn generate_code_inner(
 
 /// Gets the macro name according to the `with_newline` flag.
 fn get_macro_name(with_newline: bool) -> &'static str {
-    if with_newline { PrintlnMacro::NAME } else { PrintMacro::NAME }
+    if with_newline {
+        PrintlnMacro::NAME
+    } else {
+        PrintMacro::NAME
+    }
 }
